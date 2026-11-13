@@ -1293,3 +1293,137 @@ button {
   }
 }
 
+/* =====================================
+   MONETA - CORRECT MOBILE BUTTON LAYOUT
+===================================== */
+
+button {
+  box-sizing: border-box;
+  max-width: 100%;
+  white-space: normal;
+}
+
+/* Keep normal button sizes on desktop */
+.primary-btn {
+  min-height: 42px;
+}
+
+/* MOBILE */
+@media (max-width: 600px) {
+
+  /* General button sizing */
+  button {
+    min-height: 38px;
+    padding: 9px 12px;
+    font-size: 12px;
+  }
+
+  /* Form buttons only should fill their form */
+  form > .primary-btn,
+  .auth-card .primary-btn,
+  .family-actions .primary-btn,
+  .family-card .primary-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* Header buttons stay compact */
+  .topbar button,
+  .welcome-row button,
+  .panel-heading button,
+  .theme-btn {
+    width: auto;
+    min-width: 38px;
+    min-height: 38px;
+  }
+
+  .welcome-row .primary-btn {
+    width: auto;
+  }
+
+  /* Report buttons sit side by side */
+  .report-actions {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .report-actions button {
+    flex: 1;
+    width: 50%;
+    min-width: 0;
+    min-height: 42px;
+    padding: 9px 5px;
+    font-size: 11px;
+  }
+
+  /* Category controls */
+  .add-category {
+    display: flex;
+    gap: 8px;
+  }
+
+  .add-category input {
+    flex: 1;
+    width: 0;
+    min-width: 0;
+  }
+
+  .add-category button {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 42px;
+    padding: 8px 12px;
+  }
+
+  /* Expense edit and delete buttons */
+  .edit-btn,
+  .delete-btn {
+    width: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 4px;
+    font-size: 15px;
+  }
+
+  /* Family action buttons */
+  .family-actions form button {
+    width: 100%;
+  }
+
+  /* Sidebar navigation */
+  .sidebar .nav-item {
+    width: auto;
+    min-height: 38px;
+    padding: 8px 10px;
+  }
+
+  /* Logout */
+  .logout-btn {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  /* Prevent horizontal overflow */
+  .main,
+  .panel,
+  .content-grid,
+  .family-actions {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+/* VERY SMALL PHONES */
+@media (max-width: 380px) {
+  .report-actions button {
+    font-size: 10px;
+    padding: 8px 3px;
+  }
+
+  .welcome-row .primary-btn {
+    padding: 9px 10px;
+    font-size: 11px;
+  }
+}
+
