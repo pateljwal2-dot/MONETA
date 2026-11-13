@@ -1484,3 +1484,89 @@ button {
     font-size: 11px;
   }
 }
+
+/* =====================================
+   MONETA - MOBILE NAVIGATION FIX
+===================================== */
+
+@media (max-width: 600px) {
+
+  /* Sidebar layout */
+  .sidebar {
+    height: auto !important;
+    min-height: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .sidebar .brand {
+    width: 100%;
+    margin: 0 0 5px;
+  }
+
+  /* Navigation buttons */
+  .sidebar .nav-item {
+    display: flex !important;
+    width: 100%;
+    min-height: 42px;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 10px 14px;
+    margin: 0;
+    color: var(--ink);
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    text-align: left;
+  }
+
+  /* Selected navigation button */
+  .sidebar .nav-item.active {
+    display: flex !important;
+    color: #ffffff !important;
+    background: #26344b !important;
+  }
+
+  /* Keep unselected buttons theme-friendly */
+  .sidebar .nav-item:not(.active) {
+    color: var(--ink) !important;
+    background: transparent !important;
+  }
+
+  .sidebar .nav-item:hover {
+    background: var(--line) !important;
+  }
+
+  .sidebar .nav-item span {
+    display: inline !important;
+  }
+
+  /* Sign out button */
+  .sidebar-bottom {
+    display: block !important;
+    width: 100%;
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+
+  .sidebar-bottom .logout-btn {
+    width: 100%;
+    min-height: 40px;
+    padding: 9px 12px;
+    font-size: 13px;
+  }
+}
+
+/* Family page and general page visibility */
+.page {
+  display: none;
+}
+
+.page.active {
+  display: block;
+}
