@@ -308,6 +308,26 @@
           <span class="subtitle" id="familyRole">Manage members and household settings</span>
         </div>
 
+        <!-- User Profile & Account Card -->
+        <div class="section-card profile-card">
+          <div class="profile-card-header">
+            <div class="avatar-lg" id="profileAvatar">U</div>
+            <div class="profile-card-info">
+              <h3 id="profileDisplayName">User</h3>
+              <span class="profile-email" id="profileEmail">user@example.com</span>
+              <span class="badge badge-accent" id="profileRoleBadge">Member</span>
+            </div>
+          </div>
+          <div class="profile-card-actions">
+            <button class="btn btn-outline btn-sm" id="editProfileBtn" type="button">
+              <span>✏️</span> Edit Profile
+            </button>
+            <button class="btn btn-outline btn-sm" id="profileSignOutBtn" type="button">
+              <span>⎋</span> Sign Out
+            </button>
+          </div>
+        </div>
+
         <!-- Budget Management (Owner only) -->
         <div id="ownerControls" class="section-card hidden">
           <div class="section-header">
@@ -383,6 +403,23 @@
           <button class="btn btn-outline btn-block" id="importExpensesBtn" type="button">
             📥 Import Local Storage Expenses
           </button>
+        </div>
+
+        <!-- Danger Zone / Reset Entire Household -->
+        <div class="section-card danger-zone-card">
+          <div class="section-header">
+            <h3 style="color:var(--danger)">Danger Zone</h3>
+            <span class="badge" style="background:var(--danger-bg);color:var(--danger);font-weight:700">Irreversible</span>
+          </div>
+          <p class="section-desc">Need to wipe family history or reset all household data to zero?</p>
+          <div class="danger-actions-list">
+            <button class="btn btn-danger-outline btn-block" id="resetExpensesBtn" type="button">
+              <span>🗑️</span> Reset All Household Expenses
+            </button>
+            <button class="btn btn-danger btn-block" id="factoryResetBtn" type="button">
+              <span>⚠️</span> Factory Reset (Wipe Expenses & Reset Budget)
+            </button>
+          </div>
         </div>
 
         <div class="footer-note">
@@ -608,6 +645,63 @@
           <button class="btn btn-primary" type="submit" id="submitJoinDifferentBtn">Join Household</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       BOTTOM SHEET MODAL: EDIT PROFILE
+  ========================================== -->
+  <div class="sheet-backdrop hidden" id="editProfileBackdrop">
+    <div class="sheet-modal" id="editProfileSheet">
+      <div class="sheet-drag-handle"></div>
+      
+      <div class="sheet-header">
+        <h3>Edit Profile</h3>
+        <button type="button" class="sheet-close" id="closeEditProfileSheet">✕</button>
+      </div>
+
+      <form id="editProfileForm">
+        <div class="profile-avatar-preview-wrap">
+          <div class="avatar-lg" id="editProfileAvatarPreview">U</div>
+          <span style="font-size:11px;color:var(--text-dim)">Avatar Initial</span>
+        </div>
+
+        <div class="form-group">
+          <label for="editProfileName">Full Name</label>
+          <input id="editProfileName" required placeholder="Enter your full name" autocomplete="name">
+        </div>
+
+        <div class="form-group">
+          <label for="editProfileEmail">Email Address (Read-only)</label>
+          <input id="editProfileEmail" readonly disabled style="opacity:0.6;cursor:not-allowed">
+        </div>
+
+        <div class="modal-buttons-row">
+          <button type="button" class="btn btn-outline" id="cancelEditProfileBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveProfileBtn">Save Profile</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       DIALOG: DANGER ZONE RESET CONFIRMATION
+  ========================================== -->
+  <div class="sheet-backdrop hidden" id="resetConfirmBackdrop">
+    <div class="dialog-card">
+      <div class="dialog-icon" style="color:var(--danger)">⚠️</div>
+      <h3 id="resetDialogTitle">Reset Household Data?</h3>
+      <p id="resetDialogMessage">This will permanently delete all family expenses and transactions. This action cannot be undone.</p>
+      
+      <div class="form-group" style="text-align:left;margin-top:14px;">
+        <label for="resetConfirmInput" style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:6px;">Type <strong>RESET</strong> to confirm:</label>
+        <input type="text" id="resetConfirmInput" placeholder="RESET" style="text-align:center;font-weight:bold;letter-spacing:2px;text-transform:uppercase;">
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-outline" id="cancelResetBtn">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmResetActionBtn" disabled>Reset Now</button>
+      </div>
     </div>
   </div>
 

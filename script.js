@@ -1161,6 +1161,16 @@ function renderFamilySettings() {
   if (!currentFamily || !currentUser) return;
 
   const isOwner = currentFamily.ownerUid === currentUser.uid;
+  const displayName = currentMember?.name || currentUser.displayName || currentUser.email.split("@")[0];
+  const initial = displayName.charAt(0).toUpperCase();
+
+  // Profile Header Card in Family View
+  if ($("profileDisplayName")) $("profileDisplayName").textContent = displayName;
+  if ($("profileEmail")) $("profileEmail").textContent = currentUser.email || "";
+  if ($("profileAvatar")) $("profileAvatar").textContent = initial;
+  if ($("profileRoleBadge")) {
+    $("profileRoleBadge").textContent = isOwner ? "Owner 👑" : "Member 👤";
+  }
 
   $("familySettingsName").textContent = currentFamily.name || "Family Settings";
   $("familyRole").textContent = isOwner ? "Your Role: Household Owner 👑" : "Your Role: Member 👤";
@@ -1692,6 +1702,213 @@ $("joinDifferentForm")?.addEventListener("submit", async event => {
   } catch (err) {
     showToast(err.message);
     vibrate([40, 50]);
+  } finally {
+    setBusy(btn, false);
+  }
+});
+
+/* ==========================================================================
+   EDIT PROFILE & PROFILE SIGN OUT
+   ========================================================================== */
+
+function openEditProfileModal() {
+  if (!currentUser) return;
+  vibrate(15);
+
+  const displayName = currentMember?.name || currentUser.displayName || currentUser.email.split("@")[0];
+  const initial = displayName.charAt(0).toUpperCase();
+
+  $("editProfileName").value = displayName;
+  $("editProfileEmail").value = currentUser.email || "";
+  $("editProfileAvatarPreview").textContent = initial;
+
+  show($("editProfileBackdrop"), true);
+  setTimeout(() => $("editProfileName")?.focus(), 150);
+}
+
+function closeEditProfileModal() {
+  show($("editProfileBackdrop"), false);
+}
+
+$("editProfileBtn")?.addEventListener("click", openEditProfileModal);
+$("closeEditProfileSheet")?.addEventListener("click", closeEditProfileModal);
+$("cancelEditProfileBtn")?.addEventListener("click", closeEditProfileModal);
+$("editProfileBackdrop")?.addEventListener("click", e => {
+  if (e.target === $("editProfileBackdrop")) closeEditProfileModal();
+});
+
+// Live Avatar Preview update on keystroke
+$("editProfileName")?.addEventListener("input", e => {
+  const val = e.target.value.trim();
+  $("editProfileAvatarPreview").textContent = (val ? val.charAt(0) : "U").toUpperCase();
+});
+
+$("editProfileForm")?.addEventListener("submit", async event => {
+  event.preventDefault();
+  if (!currentUser) return;
+
+  const btn = $("saveProfileBtn");
+  const newName = $("editProfileName").value.trim();
+
+  if (!newName) {
+    showToast("Please enter a valid name.");
+    return;
+  }
+
+  setBusy(btn, true, "Saving...");
+
+  try {
+    // 1. Update Firebase Auth Display Name
+    await currentUser.updateProfile({ displayName: newName });
+
+    // 2. Update Firestore user document
+    await db.collection("users").doc(currentUser.uid).set({
+      name: newName
+    }, { merge: true });
+
+    // 3. Update family member document if in a family
+    if (currentFamilyId) {
+      await db.collection("families").doc(currentFamilyId)
+        .collection("members").doc(currentUser.uid).update({
+          name: newName
+        });
+    }
+
+    if (currentMember) currentMember.name = newName;
+
+    // Update UI elements
+    const initial = newName.charAt(0).toUpperCase();
+    $("topGreeting").textContent = `Hello, ${newName.split(" ")[0]}`;
+    $("userAvatar").textContent = initial;
+    if ($("profileDisplayName")) $("profileDisplayName").textContent = newName;
+    if ($("profileAvatar")) $("profileAvatar").textContent = initial;
+
+    closeEditProfileModal();
+    showToast("Profile updated successfully! ✨");
+    renderDashboard();
+    renderFamilySettings();
+
+  } catch (err) {
+    console.error("Profile update error:", err);
+    showToast("Update failed: " + err.message);
+  } finally {
+    setBusy(btn, false);
+  }
+});
+
+// Sign Out from Profile Button
+$("profileSignOutBtn")?.addEventListener("click", async () => {
+  vibrate(15);
+  stopListeners();
+  await auth.signOut();
+  currentUser = null;
+  currentFamily = null;
+  currentFamilyId = null;
+  expenses = [];
+  members = [];
+  showAuthScreen();
+  showToast("Signed out. See you soon! 👋");
+});
+
+/* ==========================================================================
+   DANGER ZONE: RESET WHOLE EXPENSES & FACTORY RESET
+   ========================================================================== */
+
+let activeResetMode = "expenses"; // "expenses" or "factory"
+
+function openResetModal(mode) {
+  if (!currentFamilyId || !currentUser) {
+    showToast("Please join a family first.");
+    return;
+  }
+
+  vibrate([25, 40, 25]);
+  activeResetMode = mode;
+
+  const titleEl = $("resetDialogTitle");
+  const msgEl = $("resetDialogMessage");
+  const confirmInput = $("resetConfirmInput");
+  const actionBtn = $("confirmResetActionBtn");
+
+  confirmInput.value = "";
+  actionBtn.disabled = true;
+
+  if (mode === "factory") {
+    titleEl.textContent = "Factory Reset Household?";
+    msgEl.textContent = `This will permanently delete ALL expenses, reset categories to default, and restore the default budget for "${currentFamily?.name || "your family"}".`;
+    actionBtn.textContent = "Factory Reset";
+  } else {
+    titleEl.textContent = "Reset All Expenses?";
+    msgEl.textContent = `This will permanently delete all ${expenses.length} expense records from "${currentFamily?.name || "your family"}". Statistics will reset to zero.`;
+    actionBtn.textContent = "Reset Expenses";
+  }
+
+  show($("resetConfirmBackdrop"), true);
+  setTimeout(() => confirmInput.focus(), 150);
+}
+
+function closeResetModal() {
+  show($("resetConfirmBackdrop"), false);
+}
+
+$("resetExpensesBtn")?.addEventListener("click", () => openResetModal("expenses"));
+$("factoryResetBtn")?.addEventListener("click", () => openResetModal("factory"));
+$("cancelResetBtn")?.addEventListener("click", closeResetModal);
+$("resetConfirmBackdrop")?.addEventListener("click", e => {
+  if (e.target === $("resetConfirmBackdrop")) closeResetModal();
+});
+
+// Enable action button only when user types "RESET"
+$("resetConfirmInput")?.addEventListener("input", e => {
+  const val = e.target.value.trim().toUpperCase();
+  $("confirmResetActionBtn").disabled = (val !== "RESET");
+});
+
+$("confirmResetActionBtn")?.addEventListener("click", async () => {
+  if (!currentUser || !currentFamilyId) return;
+
+  const btn = $("confirmResetActionBtn");
+  setBusy(btn, true, "Wiping data...");
+
+  try {
+    const expenseCollection = db.collection("families").doc(currentFamilyId).collection("expenses");
+    const snapshot = await expenseCollection.get();
+
+    // Batch delete in chunks of 400
+    const docs = snapshot.docs;
+    for (let i = 0; i < docs.length; i += 400) {
+      const batch = db.batch();
+      const chunk = docs.slice(i, i + 400);
+      chunk.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+    }
+
+    // If factory reset, also reset categories and budget
+    if (activeResetMode === "factory") {
+      await db.collection("families").doc(currentFamilyId).update({
+        budget: 15000,
+        categories: [...DEFAULT_CATEGORIES]
+      });
+      categories = [...DEFAULT_CATEGORIES];
+    }
+
+    expenses = [];
+    closeResetModal();
+
+    if (activeResetMode === "factory") {
+      showToast("Household factory reset complete! 🔄");
+    } else {
+      showToast("All expenses wiped to zero! 🗑️");
+    }
+
+    renderDashboard();
+    renderExpenses();
+    renderAnalytics();
+    renderFamilySettings();
+
+  } catch (err) {
+    console.error("Reset Error:", err);
+    showToast("Reset failed: " + err.message);
   } finally {
     setBusy(btn, false);
   }
