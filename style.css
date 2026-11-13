@@ -1665,3 +1665,78 @@ button {
     margin-left: auto !important;
   }
 }
+
+/* MONETA - FIXED BOTTOM MOBILE NAVIGATION */
+
+@media (max-width: 600px) {
+
+  .sidebar {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 9999 !important;
+
+    width: 100% !important;
+    height: 68px !important;
+    min-height: 68px !important;
+
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    padding: 7px 10px !important;
+    background: var(--panel) !important;
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -3px 15px rgba(0,0,0,0.07);
+  }
+
+  .sidebar .brand,
+  .sidebar .nav-label,
+  .sidebar-bottom {
+    display: none !important;
+  }
+
+  .sidebar nav,
+  .sidebar .nav,
+  .sidebar .sidebar-nav {
+    display: flex !important;
+    flex-direction: row !important;
+    width: 100% !important;
+    height: 100% !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+    gap: 8px !important;
+  }
+
+  .sidebar .nav-item {
+    display: flex !important;
+    flex: 1 !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px 4px !important;
+    margin: 0 !important;
+    border-radius: 10px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+  }
+
+  .sidebar .nav-item.active {
+    background: #26344b !important;
+    color: #ffffff !important;
+  }
+
+  .sidebar .nav-item:not(.active) {
+    background: transparent !important;
+    color: var(--ink) !important;
+  }
+
+  .main,
+  .app-main {
+    padding-bottom: 85px !important;
+  }
+}
