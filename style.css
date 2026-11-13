@@ -1599,3 +1599,69 @@ button {
     font-size: 12px;
   }
 }
+
+/* MONETA - HORIZONTAL MOBILE NAVIGATION */
+
+@media (max-width: 600px) {
+
+  .sidebar {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .sidebar .brand {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  /* Put navigation buttons in one row */
+  .sidebar nav,
+  .sidebar .nav,
+  .sidebar .sidebar-nav {
+    display: flex !important;
+    flex-direction: row !important;
+    width: 100% !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 7px !important;
+    order: 2;
+  }
+
+  .sidebar .nav-item {
+    display: flex !important;
+    flex: 1 1 0 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    min-width: 0 !important;
+    min-height: 42px !important;
+    padding: 8px 4px !important;
+    margin: 0 !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+    border-radius: 9px !important;
+  }
+
+  .sidebar .nav-item.active {
+    background: #26344b !important;
+    color: white !important;
+  }
+
+  .sidebar .nav-item:not(.active) {
+    background: transparent !important;
+    color: var(--ink) !important;
+  }
+
+  .sidebar-bottom {
+    order: 3;
+    width: 100% !important;
+    margin-top: 5px !important;
+  }
+
+  .sidebar-bottom .logout-btn {
+    width: auto !important;
+    margin-left: auto !important;
+  }
+}
