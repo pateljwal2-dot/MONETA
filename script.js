@@ -28,6 +28,7 @@ let expenses = [];
 let members = [];
 let categories = [];
 let activeCategoryFilter = "all";
+let activeMemberFilter = null;
 let expenseToDelete = null;
 
 // Realtime Unsubscribers
@@ -112,8 +113,82 @@ const money = amount =>
   });
 
 function getCategoryIcon(cat) {
-  const key = String(cat || "").toLowerCase().trim();
-  return CATEGORY_ICONS[key] || "💳";
+  const str = String(cat || "").trim();
+  if (!str) return "🏷️";
+  // If category starts with an emoji, extract and return it
+  const emojiMatch = str.match(/^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji})/u);
+  if (emojiMatch) {
+    return emojiMatch[0];
+  }
+  const key = str.toLowerCase();
+  return CATEGORY_ICONS[key] || "🏷️";
+}
+
+function getCategoryCleanName(cat) {
+  const str = String(cat || "").trim();
+  const icon = getCategoryIcon(str);
+  if (str.startsWith(icon)) {
+    return str.slice(icon.length).trim() || str;
+  }
+  return str;
+}
+
+/* ==========================================================================
+   PAYMENT METHODS CONFIG & HELPERS
+   ========================================================================== */
+
+const PAYMENT_METHODS = [
+  { id: "UPI/Online", label: "UPI", icon: "📱", color: "#6366f1" },
+  { id: "Cash", label: "Cash", icon: "💵", color: "#10b981" },
+  { id: "Credit/Debit Card", label: "Credit/Debit Card", icon: "💳", color: "#f59e0b" },
+  { id: "Net Banking", label: "Net Banking", icon: "🏦", color: "#06b6d4" },
+  { id: "Cheque", label: "Cheque", icon: "🧾", color: "#ec4899" }
+];
+
+function getPaymentMethodInfo(method) {
+  const norm = String(method || "").trim().toLowerCase();
+  if (norm.includes("upi") || norm.includes("online") || norm.includes("gpay") || norm.includes("phonepe") || norm.includes("paytm")) {
+    return { id: "UPI/Online", label: "UPI / Online", icon: "📱", color: "#6366f1" };
+  }
+  if (norm.includes("cash")) {
+    return { id: "Cash", label: "Cash", icon: "💵", color: "#10b981" };
+  }
+  if (norm.includes("card") || norm.includes("debit") || norm.includes("credit")) {
+    return { id: "Credit/Debit Card", label: "Credit/Debit Card", icon: "💳", color: "#f59e0b" };
+  }
+  if (norm.includes("bank") || norm.includes("net") || norm.includes("neft") || norm.includes("rtgs") || norm.includes("imps")) {
+    return { id: "Net Banking", label: "Net Banking", icon: "🏦", color: "#06b6d4" };
+  }
+  if (norm.includes("cheque") || norm.includes("check")) {
+    return { id: "Cheque", label: "Cheque", icon: "🧾", color: "#ec4899" };
+  }
+  return { id: "Cheque", label: "Cheque", icon: "🧾", color: "#ec4899" };
+}
+
+function renderPaymentMethodChips(containerId, selectId) {
+  const container = $(containerId);
+  const select = $(selectId);
+  if (!container || !select) return;
+
+  container.innerHTML = PAYMENT_METHODS.map(pm => {
+    const isSelected = select.value === pm.id;
+    return `<button type="button" class="modal-cat-chip ${isSelected ? "active" : ""}" data-payment="${safeText(pm.id)}">${pm.icon} ${safeText(pm.label)}</button>`;
+  }).join("");
+
+  container.querySelectorAll(".modal-cat-chip").forEach(btn => {
+    btn.addEventListener("click", () => {
+      vibrate(10);
+      select.value = btn.dataset.payment;
+      container.querySelectorAll(".modal-cat-chip").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+  });
+
+  select.addEventListener("change", () => {
+    container.querySelectorAll(".modal-cat-chip").forEach(b => {
+      b.classList.toggle("active", b.dataset.payment === select.value);
+    });
+  });
 }
 
 function vibrate(pattern = 15) {
@@ -654,8 +729,10 @@ function openAddExpenseModal() {
   $("quantity").value = "1";
   $("productName").value = "";
   $("expenseNotes").value = "";
+  if ($("paymentMethodSelect")) $("paymentMethodSelect").value = "UPI/Online";
   updateCalculatedTotal();
   renderCategories();
+  renderPaymentMethodChips("modalPaymentChips", "paymentMethodSelect");
   setTimeout(() => $("productName")?.focus(), 150);
 }
 
@@ -705,6 +782,7 @@ $("expenseForm")?.addEventListener("submit", async event => {
   const button = $("saveExpenseBtn");
   const name = $("productName").value.trim();
   const category = $("categorySelect").value;
+  const paymentMethod = $("paymentMethodSelect")?.value || "UPI/Online";
   const date = $("expenseDate").value;
   const price = Number($("price").value);
   const quantity = Number($("quantity").value);
@@ -724,6 +802,7 @@ $("expenseForm")?.addEventListener("submit", async event => {
       .collection("expenses").add({
         name,
         category,
+        paymentMethod,
         date,
         price,
         quantity,
@@ -756,6 +835,11 @@ function openEditExpenseModal(expense) {
   $("editQuantity").value = expense.quantity || 1;
   $("editExpenseDate").value = expense.date || getTodayString();
   $("editExpenseNotes").value = expense.notes || "";
+
+  // Payment Method in Edit Modal
+  const paymentMethod = expense.paymentMethod || "UPI/Online";
+  if ($("editPaymentMethodSelect")) $("editPaymentMethodSelect").value = paymentMethod;
+  renderPaymentMethodChips("editModalPaymentChips", "editPaymentMethodSelect");
 
   // Render Category Select
   const sel = $("editCategorySelect");
@@ -790,6 +874,7 @@ $("editExpenseForm")?.addEventListener("submit", async event => {
   const id = $("editExpenseId").value;
   const name = $("editProductName").value.trim();
   const category = $("editCategorySelect").value;
+  const paymentMethod = $("editPaymentMethodSelect")?.value || "UPI/Online";
   const price = Number($("editPrice").value);
   const quantity = Number($("editQuantity").value);
   const date = $("editExpenseDate").value;
@@ -808,6 +893,7 @@ $("editExpenseForm")?.addEventListener("submit", async event => {
       .collection("expenses").doc(id).update({
         name,
         category,
+        paymentMethod,
         price,
         quantity,
         total: price * quantity,
@@ -1009,16 +1095,137 @@ function renderMemberSpending(monthly, total) {
     const initial = (member.name || member.email || "M").charAt(0).toUpperCase();
 
     return `
-      <div class="member-bar-row">
+      <div class="member-bar-row clickable-member-row" data-member-id="${safeText(member.id)}" data-member-name="${safeText(member.name || member.email || "Member")}" title="Click to view ${safeText(member.name || "Member")}'s expenses">
         <div class="member-bar-info">
           <div class="member-name-tag">
             <span class="member-avatar-mini">${initial}</span>
             <span>${safeText(member.name || member.email || "Member")}</span>
+            <span class="member-click-hint">Filter →</span>
           </div>
           <strong>${money(memberTotal)} <small style="color:var(--text-dim);font-weight:normal">(${percent.toFixed(0)}%)</small></strong>
         </div>
         <div class="member-bar-track">
           <div class="member-bar-fill" style="width: ${percent}%"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // Click on specific member row to filter their expenses
+  container.querySelectorAll(".clickable-member-row").forEach(row => {
+    row.addEventListener("click", () => {
+      vibrate(12);
+      const mId = row.dataset.memberId;
+      const mName = row.dataset.memberName;
+      filterExpensesByMember(mId, mName);
+    });
+  });
+}
+
+function filterExpensesByMember(memberId, memberName) {
+  activeMemberFilter = memberId;
+  switchView("expensesView");
+  const subtitle = $("expensesSubtitle");
+  if (subtitle) {
+    subtitle.innerHTML = `Showing expenses for <strong>${safeText(memberName)}</strong> <button type="button" class="text-link" id="clearMemberFilterBtn" style="font-size:11px;color:var(--accent-light);cursor:pointer;margin-left:6px;">✕ Clear</button>`;
+    $("clearMemberFilterBtn")?.addEventListener("click", () => {
+      activeMemberFilter = null;
+      if (subtitle) subtitle.textContent = "Search & filter household transactions";
+      renderExpenses();
+      showToast("Showing all household expenses");
+    });
+  }
+  renderExpenses();
+  showToast(`Filtered expenses by ${memberName} 👤`);
+}
+
+function renderAnalyticsPaymentStats(monthly, total) {
+  const badge = $("analyticsTopPaymentBadge");
+  const iconEl = $("analyticsTopPaymentIcon");
+  const nameEl = $("analyticsTopPaymentMethodName");
+  const amtEl = $("analyticsTopPaymentAmount");
+  const multiBar = $("analyticsPaymentMultiBar");
+  const subEl = $("analyticsPaymentBarSub");
+  const listEl = $("analyticsPaymentList");
+
+  if (!listEl) return;
+
+  if (!monthly.length || total <= 0) {
+    if (badge) badge.textContent = "Top: —";
+    if (iconEl) iconEl.textContent = "💳";
+    if (nameEl) nameEl.textContent = "No expenses this month";
+    if (amtEl) amtEl.textContent = "₹0.00 · 0% of monthly total";
+    if (subEl) subEl.textContent = "Add expenses to view payment share";
+    if (multiBar) multiBar.innerHTML = `<div class="payment-bar-seg empty" style="width: 100%"></div>`;
+    listEl.innerHTML = `<div class="empty-state" style="padding:14px;font-size:12px;">No payment activity recorded for this month.</div>`;
+    return;
+  }
+
+  // Aggregate by payment method
+  const stats = {};
+  PAYMENT_METHODS.forEach(pm => {
+    stats[pm.id] = { ...pm, amount: 0, count: 0 };
+  });
+
+  monthly.forEach(item => {
+    const info = getPaymentMethodInfo(item.paymentMethod);
+    if (!stats[info.id]) {
+      stats[info.id] = { id: info.id, label: info.label, icon: info.icon, color: info.color, amount: 0, count: 0 };
+    }
+    stats[info.id].amount += Number(item.total || 0);
+    stats[info.id].count += 1;
+  });
+
+  const sorted = Object.values(stats).sort((a, b) => b.amount - a.amount);
+  const topMethod = sorted[0] || { label: "—", icon: "💳", amount: 0, count: 0 };
+  const topPercent = total > 0 ? (topMethod.amount / total) * 100 : 0;
+
+  // 1. Top Method Banner & Badge
+  if (badge) {
+    badge.textContent = `Top: ${topMethod.icon} ${topMethod.label}`;
+  }
+  if (iconEl) iconEl.textContent = topMethod.icon;
+  if (nameEl) nameEl.textContent = `${topMethod.label} (${topPercent.toFixed(0)}%)`;
+  if (amtEl) {
+    amtEl.textContent = `${money(topMethod.amount)} · ${topPercent.toFixed(1)}% of total (${topMethod.count} purchase${topMethod.count === 1 ? "" : "s"})`;
+  }
+  if (subEl) {
+    subEl.textContent = `${topMethod.icon} ${topMethod.label} leads with ${topPercent.toFixed(0)}% of spending`;
+  }
+
+  // 2. Multi-Segment Distribution Bar
+  if (multiBar) {
+    const activeSegments = sorted.filter(m => m.amount > 0);
+    if (activeSegments.length > 0) {
+      multiBar.innerHTML = activeSegments.map(m => {
+        const pct = (m.amount / total) * 100;
+        return `<div class="payment-bar-seg" style="width: ${pct}%; background: ${m.color};" title="${safeText(m.label)}: ${pct.toFixed(1)}% (${money(m.amount)})"></div>`;
+      }).join("");
+    } else {
+      multiBar.innerHTML = `<div class="payment-bar-seg empty" style="width: 100%"></div>`;
+    }
+  }
+
+  // 3. Detailed list rows with progress bars
+  listEl.innerHTML = sorted.map(m => {
+    const pct = total > 0 ? (m.amount / total) * 100 : 0;
+    const isTop = m.id === topMethod.id && m.amount > 0;
+
+    return `
+      <div class="payment-method-row ${isTop ? "is-top" : ""}">
+        <div class="payment-method-header">
+          <div class="payment-method-name-tag">
+            <span>${m.icon}</span>
+            <span>${safeText(m.label)}</span>
+            ${isTop ? `<span class="payment-method-badge">🔥 Most Used</span>` : ""}
+          </div>
+          <div class="payment-method-amounts">
+            <strong>${money(m.amount)} <small style="color:var(--text-dim);font-weight:normal">(${pct.toFixed(1)}%)</small></strong>
+            <small>${m.count} expense${m.count === 1 ? "" : "s"}</small>
+          </div>
+        </div>
+        <div class="payment-method-track">
+          <div class="payment-method-fill" style="width: ${pct}%; background: ${m.color};"></div>
         </div>
       </div>
     `;
@@ -1032,6 +1239,7 @@ function renderMemberSpending(monthly, total) {
 function renderExpenseCard(expense) {
   const canEdit = expense.createdBy === currentUser?.uid;
   const icon = getCategoryIcon(expense.category);
+  const payInfo = getPaymentMethodInfo(expense.paymentMethod);
 
   return `
     <div class="expense-card">
@@ -1039,7 +1247,7 @@ function renderExpenseCard(expense) {
         <div class="category-icon-box">${icon}</div>
         <div class="expense-details">
           <span class="expense-name">${safeText(expense.name)}</span>
-          <span class="expense-meta">${safeText(expense.category)} · ${safeText(expense.date)} · by ${safeText(expense.createdByName || "Family")}</span>
+          <span class="expense-meta">${safeText(expense.category)} · <span class="payment-pill">${payInfo.icon} ${safeText(payInfo.label)}</span> · ${safeText(expense.date)} · by ${safeText(expense.createdByName || "Family")}</span>
           ${expense.notes ? `<span class="expense-notes">${safeText(expense.notes)}</span>` : ""}
         </div>
       </div>
@@ -1081,12 +1289,13 @@ function renderExpenses() {
     const matchesMonth = !month || String(expense.date || "").startsWith(month);
     const matchesCat = activeCategoryFilter === "all" ||
       String(expense.category || "").toLowerCase() === activeCategoryFilter.toLowerCase();
+    const matchesMember = !activeMemberFilter || expense.createdBy === activeMemberFilter;
     const matchesSearch = !search ||
       String(expense.name || "").toLowerCase().includes(search) ||
       String(expense.category || "").toLowerCase().includes(search) ||
       String(expense.createdByName || "").toLowerCase().includes(search);
 
-    return matchesMonth && matchesCat && matchesSearch;
+    return matchesMonth && matchesCat && matchesMember && matchesSearch;
   });
 
   renderExpenseListCard($("expenseList"), filtered);
@@ -1121,9 +1330,11 @@ function renderCategories() {
   const select = $("categorySelect");
   if (select) {
     const currentVal = select.value;
-    select.innerHTML = categories.map(cat =>
-      `<option value="${safeText(cat)}">${getCategoryIcon(cat)} ${safeText(cat)}</option>`
-    ).join("");
+    select.innerHTML = categories.map(cat => {
+      const icon = getCategoryIcon(cat);
+      const cleanName = getCategoryCleanName(cat);
+      return `<option value="${safeText(cat)}">${icon} ${safeText(cleanName)}</option>`;
+    }).join("");
     if (categories.includes(currentVal)) select.value = currentVal;
   }
 
@@ -1131,9 +1342,11 @@ function renderCategories() {
   const editSelect = $("editCategorySelect");
   if (editSelect) {
     const currentEditVal = editSelect.value;
-    editSelect.innerHTML = categories.map(cat =>
-      `<option value="${safeText(cat)}">${getCategoryIcon(cat)} ${safeText(cat)}</option>`
-    ).join("");
+    editSelect.innerHTML = categories.map(cat => {
+      const icon = getCategoryIcon(cat);
+      const cleanName = getCategoryCleanName(cat);
+      return `<option value="${safeText(cat)}">${icon} ${safeText(cleanName)}</option>`;
+    }).join("");
     if (categories.includes(currentEditVal)) editSelect.value = currentEditVal;
   }
 
@@ -1144,12 +1357,16 @@ function renderCategories() {
   // 4. Family settings category management chips (with remove button)
   const chips = $("categoryChips");
   if (chips) {
-    chips.innerHTML = categories.map(cat => `
-      <span class="category-chip-item">
-        <span>${getCategoryIcon(cat)} ${safeText(cat)}</span>
-        <button type="button" class="category-del-btn" data-del-cat="${safeText(cat)}" title="Remove Category">✕</button>
-      </span>
-    `).join("");
+    chips.innerHTML = categories.map(cat => {
+      const icon = getCategoryIcon(cat);
+      const cleanName = getCategoryCleanName(cat);
+      return `
+        <span class="category-chip-item">
+          <span>${icon} ${safeText(cleanName)}</span>
+          <button type="button" class="category-del-btn" data-del-cat="${safeText(cat)}" title="Remove Category">✕</button>
+        </span>
+      `;
+    }).join("");
 
     chips.querySelectorAll("[data-del-cat]").forEach(btn => {
       btn.addEventListener("click", async e => {
@@ -1184,7 +1401,9 @@ function renderModalCategoryChips(containerId, selectId) {
 
   container.innerHTML = categories.map(cat => {
     const isSelected = select.value === cat;
-    return `<button type="button" class="modal-cat-chip ${isSelected ? "active" : ""}" data-cat="${safeText(cat)}">${getCategoryIcon(cat)} ${safeText(cat)}</button>`;
+    const icon = getCategoryIcon(cat);
+    const cleanName = getCategoryCleanName(cat);
+    return `<button type="button" class="modal-cat-chip ${isSelected ? "active" : ""}" data-cat="${safeText(cat)}">${icon} ${safeText(cleanName)}</button>`;
   }).join("");
 
   container.querySelectorAll(".modal-cat-chip").forEach(btn => {
@@ -1212,7 +1431,9 @@ function renderCategoryFilterChips() {
 
   categories.forEach(cat => {
     const isActive = activeCategoryFilter.toLowerCase() === cat.toLowerCase() ? "active" : "";
-    html += `<button type="button" class="chip ${isActive}" data-cat="${safeText(cat)}">${getCategoryIcon(cat)} ${safeText(cat)}</button>`;
+    const icon = getCategoryIcon(cat);
+    const cleanName = getCategoryCleanName(cat);
+    html += `<button type="button" class="chip ${isActive}" data-cat="${safeText(cat)}">${icon} ${safeText(cleanName)}</button>`;
   });
 
   track.innerHTML = html;
@@ -1227,15 +1448,23 @@ function renderCategoryFilterChips() {
 }
 
 $("addCategoryBtn")?.addEventListener("click", async () => {
-  const input = $("newCategory");
-  const cat = input.value.trim();
+  const emojiInput = $("newCategoryEmoji");
+  const nameInput = $("newCategory");
+  const emoji = (emojiInput?.value || "").trim();
+  let name = (nameInput?.value || "").trim();
 
-  if (!cat) {
+  if (!name) {
     showToast("Enter a category name.");
     return;
   }
 
-  if (categories.some(c => c.toLowerCase() === cat.toLowerCase())) {
+  // If emoji is provided and name does not already begin with that emoji
+  let cat = name;
+  if (emoji && !name.startsWith(emoji)) {
+    cat = `${emoji} ${name}`;
+  }
+
+  if (categories.some(c => c.toLowerCase() === cat.toLowerCase() || getCategoryCleanName(c).toLowerCase() === name.toLowerCase())) {
     showToast("This category already exists.");
     return;
   }
@@ -1244,12 +1473,26 @@ $("addCategoryBtn")?.addEventListener("click", async () => {
     const updated = [...categories, cat];
     await db.collection("families").doc(currentFamilyId).update({ categories: updated });
     categories = updated;
-    input.value = "";
+    if (nameInput) nameInput.value = "";
+    if (emojiInput) emojiInput.value = "";
+    $("quickEmojiBar")?.querySelectorAll(".quick-emoji-btn").forEach(b => b.classList.remove("active"));
     renderCategories();
-    showToast("Category added! 🏷️");
+    showToast(`Category "${cat}" added! 🏷️`);
   } catch (err) {
     showToast("Error: " + err.message);
   }
+});
+
+// Quick emoji buttons click handler
+$("quickEmojiBar")?.querySelectorAll(".quick-emoji-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    vibrate(10);
+    const em = btn.dataset.emoji;
+    if ($("newCategoryEmoji")) $("newCategoryEmoji").value = em;
+    $("quickEmojiBar").querySelectorAll(".quick-emoji-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    $("newCategory")?.focus();
+  });
 });
 
 /* ==========================================================================
@@ -1266,6 +1509,7 @@ function renderAnalytics() {
 
   if (!monthly.length) {
     container.innerHTML = `<div class="empty-state">No expense activity recorded for ${month}.</div>`;
+    renderAnalyticsPaymentStats(monthly, 0);
     $("insightsList").innerHTML = `<li>Add expenses this month to generate smart spending insights.</li>`;
     return;
   }
@@ -1282,11 +1526,12 @@ function renderAnalytics() {
   container.innerHTML = sorted.map(([cat, amount]) => {
     const percent = total > 0 ? (amount / total) * 100 : 0;
     const icon = getCategoryIcon(cat);
+    const cleanName = getCategoryCleanName(cat);
 
     return `
       <div class="cat-breakdown-item">
         <div class="cat-breakdown-header">
-          <span>${icon} ${safeText(cat)}</span>
+          <span>${icon} ${safeText(cleanName)}</span>
           <strong>${money(amount)} <small style="color:var(--text-dim)">(${percent.toFixed(1)}%)</small></strong>
         </div>
         <div class="cat-breakdown-track">
@@ -1296,13 +1541,28 @@ function renderAnalytics() {
     `;
   }).join("");
 
+  // Payment Breakdown & Share Bar in Analytics View
+  renderAnalyticsPaymentStats(monthly, total);
+
   // Generate Smart Highlights
   const highestExp = monthly.slice().sort((a, b) => Number(b.total || 0) - Number(a.total || 0))[0];
   const topCategory = sorted[0];
 
+  // Aggregate payment stats for insights
+  const payStats = {};
+  PAYMENT_METHODS.forEach(pm => { payStats[pm.id] = 0; });
+  monthly.forEach(item => {
+    const pInfo = getPaymentMethodInfo(item.paymentMethod);
+    payStats[pInfo.id] = (payStats[pInfo.id] || 0) + Number(item.total || 0);
+  });
+  const topPayEntry = Object.entries(payStats).sort((a, b) => b[1] - a[1])[0];
+  const topPayInfo = topPayEntry ? getPaymentMethodInfo(topPayEntry[0]) : null;
+  const topPayAmt = topPayEntry ? topPayEntry[1] : 0;
+
   let insightsHtml = `
     <li><strong>Top Expense:</strong> ${safeText(highestExp.name)} (${money(highestExp.total)}) by ${safeText(highestExp.createdByName || "member")}.</li>
-    <li><strong>Biggest Spending Category:</strong> ${getCategoryIcon(topCategory[0])} ${safeText(topCategory[0])} represents ${((topCategory[1] / total) * 100).toFixed(0)}% of household outflows.</li>
+    <li><strong>Biggest Spending Category:</strong> ${getCategoryIcon(topCategory[0])} ${safeText(getCategoryCleanName(topCategory[0]))} represents ${((topCategory[1] / total) * 100).toFixed(0)}% of household outflows.</li>
+    ${topPayInfo && topPayAmt > 0 ? `<li><strong>Top Payment Mode:</strong> Most spent via <strong>${topPayInfo.icon} ${safeText(topPayInfo.label)}</strong> (${money(topPayAmt)} · ${((topPayAmt / total) * 100).toFixed(0)}% of total).</li>` : ""}
     <li><strong>Average Transaction:</strong> ${money(total / monthly.length)} across ${monthly.length} recorded purchases.</li>
   `;
 
@@ -1521,17 +1781,21 @@ function generatePdfReport(title, list) {
   // Sort by date descending
   const sorted = list.slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
 
-  const rows = sorted.map(item => `
+  const rows = sorted.map(item => {
+    const pInfo = getPaymentMethodInfo(item.paymentMethod);
+    return `
     <tr>
       <td>${safeText(item.date || "")}</td>
       <td><strong>${safeText(item.name || "")}</strong></td>
       <td>${safeText(item.category || "")}</td>
+      <td>${pInfo.icon} ${safeText(pInfo.label)}</td>
       <td>${safeText(item.createdByName || "")}</td>
       <td>${money(item.price)}</td>
       <td>${safeText(item.quantity)}</td>
       <td style="font-weight:bold;color:#1e293b">${money(item.total)}</td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 
   const htmlContent = `<!DOCTYPE html>
 <html>
@@ -1578,12 +1842,12 @@ function generatePdfReport(title, list) {
   <table>
     <thead>
       <tr>
-        <th>Date</th><th>Item / Service</th><th>Category</th>
+        <th>Date</th><th>Item / Service</th><th>Category</th><th>Payment</th>
         <th>Member</th><th>Price</th><th>Qty</th><th>Total</th>
       </tr>
     </thead>
     <tbody>
-      ${rows || `<tr><td colspan="7" style="text-align:center;padding:20px;color:#64748b">No expenses found.</td></tr>`}
+      ${rows || `<tr><td colspan="8" style="text-align:center;padding:20px;color:#64748b">No expenses found.</td></tr>`}
     </tbody>
   </table>
 
