@@ -138,7 +138,7 @@ function getCategoryCleanName(cat) {
    ========================================================================== */
 
 const PAYMENT_METHODS = [
-  { id: "UPI/Online", label: "UPI", icon: "📱", color: "#6366f1" },
+  { id: "UPI", label: "UPI", icon: "📱", color: "#6366f1" },
   { id: "Cash", label: "Cash", icon: "💵", color: "#10b981" },
   { id: "Credit/Debit Card", label: "Credit/Debit Card", icon: "💳", color: "#f59e0b" },
   { id: "Net Banking", label: "Net Banking", icon: "🏦", color: "#06b6d4" },
@@ -148,7 +148,7 @@ const PAYMENT_METHODS = [
 function getPaymentMethodInfo(method) {
   const norm = String(method || "").trim().toLowerCase();
   if (norm.includes("upi") || norm.includes("online") || norm.includes("gpay") || norm.includes("phonepe") || norm.includes("paytm")) {
-    return { id: "UPI/Online", label: "UPI", icon: "📱", color: "#6366f1" };
+    return { id: "UPI", label: "UPI", icon: "📱", color: "#6366f1" };
   }
   if (norm.includes("cash")) {
     return { id: "Cash", label: "Cash", icon: "💵", color: "#10b981" };
@@ -729,7 +729,7 @@ function openAddExpenseModal() {
   $("quantity").value = "1";
   $("productName").value = "";
   $("expenseNotes").value = "";
-  if ($("paymentMethodSelect")) $("paymentMethodSelect").value = "UPI/Online";
+  if ($("paymentMethodSelect")) $("paymentMethodSelect").value = "UPI";
   updateCalculatedTotal();
   renderCategories();
   renderPaymentMethodChips("modalPaymentChips", "paymentMethodSelect");
@@ -782,7 +782,7 @@ $("expenseForm")?.addEventListener("submit", async event => {
   const button = $("saveExpenseBtn");
   const name = $("productName").value.trim();
   const category = $("categorySelect").value;
-  const paymentMethod = $("paymentMethodSelect")?.value || "UPI/Online";
+  const paymentMethod = $("paymentMethodSelect")?.value || "UPI";
   const date = $("expenseDate").value;
   const price = Number($("price").value);
   const quantity = Number($("quantity").value);
@@ -837,7 +837,7 @@ function openEditExpenseModal(expense) {
   $("editExpenseNotes").value = expense.notes || "";
 
   // Payment Method in Edit Modal
-  const paymentMethod = expense.paymentMethod || "UPI/Online";
+  const paymentMethod = expense.paymentMethod || "UPI";
   if ($("editPaymentMethodSelect")) $("editPaymentMethodSelect").value = paymentMethod;
   renderPaymentMethodChips("editModalPaymentChips", "editPaymentMethodSelect");
 
@@ -874,7 +874,7 @@ $("editExpenseForm")?.addEventListener("submit", async event => {
   const id = $("editExpenseId").value;
   const name = $("editProductName").value.trim();
   const category = $("editCategorySelect").value;
-  const paymentMethod = $("editPaymentMethodSelect")?.value || "UPI/Online";
+  const paymentMethod = $("editPaymentMethodSelect")?.value || "UPI";
   const price = Number($("editPrice").value);
   const quantity = Number($("editQuantity").value);
   const date = $("editExpenseDate").value;
