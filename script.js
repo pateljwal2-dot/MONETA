@@ -1792,14 +1792,14 @@ function generatePdfReport(title, list) {
     catBreakdown[c] = (catBreakdown[c] || 0) + Number(item.total || 0);
   });
 
-  const catRowsHtml = Object.entries(catBreakdown)
+  const catChipsHtml = Object.entries(catBreakdown)
     .sort((a, b) => b[1] - a[1])
     .map(([cat, amt]) => {
       const pct = total > 0 ? ((amt / total) * 100).toFixed(1) : "0.0";
       const icon = getCategoryIcon(cat);
       const cleanName = typeof getCategoryCleanName === "function" ? getCategoryCleanName(cat) : cat;
-      return `<div class="cat-row"><span class="cat-name">${icon} ${safeText(cleanName)}</span><span><span class="cat-amt">${money(amt)}</span><span class="cat-pct">${pct}%</span></span></div>`;
-    }).join("") || `<div style="color:#94a3b8;font-size:10px">No category data</div>`;
+      return `<span class="cat-pill">${icon} <b>${safeText(cleanName)}:</b> ${money(amt)} (${pct}%)</span>`;
+    }).join(" ") || `<span style="color:#94a3b8;font-size:9.5px">No category data recorded</span>`;
 
   // Build expense rows
   const rows = sorted.map((item, idx) => {
@@ -1808,15 +1808,15 @@ function generatePdfReport(title, list) {
     const cleanName = typeof getCategoryCleanName === "function" ? getCategoryCleanName(item.category) : (item.category || "");
     const bg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
     return `<tr style="background:${bg}">
-      <td style="color:#64748b;white-space:nowrap;text-align:center">${String(idx + 1).padStart(2, "0")}</td>
-      <td style="white-space:nowrap">${safeText(item.date || "")}</td>
-      <td><strong>${safeText(item.name || "")}</strong>${item.notes ? `<br><span style="font-size:9px;color:#94a3b8">${safeText(item.notes)}</span>` : ""}</td>
-      <td>${icon} ${safeText(cleanName)}</td>
-      <td style="white-space:nowrap">${pInfo.icon} ${safeText(pInfo.label)}</td>
-      <td style="white-space:nowrap">${safeText(item.createdByName || "")}</td>
-      <td style="text-align:right;white-space:nowrap">${money(item.price)}</td>
-      <td style="text-align:center">${safeText(item.quantity)}</td>
-      <td style="text-align:right;font-weight:700;color:#1e293b;white-space:nowrap">${money(item.total)}</td>
+      <td class="text-center col-num">${String(idx + 1).padStart(2, "0")}</td>
+      <td class="col-date">${safeText(item.date || "")}</td>
+      <td class="col-item"><strong>${safeText(item.name || "")}</strong>${item.notes ? `<br><span style="font-size:8.5px;color:#64748b">${safeText(item.notes)}</span>` : ""}</td>
+      <td class="col-cat">${icon} ${safeText(cleanName)}</td>
+      <td class="col-pay">${pInfo.icon} ${safeText(pInfo.label)}</td>
+      <td class="col-member">${safeText(item.createdByName || "")}</td>
+      <td class="text-right col-price">${money(item.price)}</td>
+      <td class="text-center col-qty">${safeText(item.quantity)}</td>
+      <td class="text-right col-total"><strong>${money(item.total)}</strong></td>
     </tr>`;
   }).join("");
 
@@ -1828,224 +1828,322 @@ function generatePdfReport(title, list) {
   <title>${safeText(title)} | MONETA</title>
   <style>
     @page {
-      size: A4 landscape;
-      margin: 15mm 12mm 18mm 12mm;
+      size: auto;
+      margin: 10mm 8mm 12mm 8mm;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
     body {
-      font-family: 'Segoe UI', Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       font-size: 11px;
-      color: #1e293b;
-      background: #fff;
+      line-height: 1.35;
+      color: #0f172a;
+      background: #ffffff;
+      padding: 16px;
+      margin: 0 auto;
+      max-width: 1000px;
     }
 
-    /* ---- REPORT HEADER ---- */
-    .report-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      border-bottom: 3px solid #6366f1;
-      padding-bottom: 10px;
-      margin-bottom: 14px;
-    }
-    .brand-logo { font-size: 22px; font-weight: 900; color: #6366f1; letter-spacing: -1px; }
-    .brand-tagline { font-size: 10px; color: #94a3b8; margin-top: 1px; }
-    .report-title-block { text-align: center; }
-    .report-title { font-size: 16px; font-weight: 800; color: #0f172a; }
-    .report-subtitle { font-size: 11px; color: #6366f1; font-weight: 600; margin-top: 2px; }
-    .report-meta { text-align: right; font-size: 10px; color: #64748b; line-height: 1.6; }
-    .report-meta strong { color: #1e293b; }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .text-left { text-align: left; }
 
-    /* ---- SECTION LABELS ---- */
-    .section-label {
-      font-size: 10px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #6366f1;
-      margin: 14px 0 6px;
-      padding-bottom: 3px;
-      border-bottom: 1px solid #e2e8f0;
-    }
-
-    /* ---- SUMMARY CARDS ---- */
-    .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 14px;
-    }
-    .summary-card {
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 10px 14px;
-      background: #f8fafc;
-    }
-    .summary-card .label {
-      font-size: 9px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: #64748b;
-      display: block;
-      margin-bottom: 3px;
-    }
-    .summary-card .value { font-size: 18px; font-weight: 800; color: #0f172a; }
-    .summary-card.over .value { color: #ef4444; }
-    .summary-card.ok .value { color: #10b981; }
-
-    /* ---- CATEGORY BREAKDOWN ---- */
-    .cat-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4px 20px;
-      margin-bottom: 14px;
-    }
-    .cat-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 10px;
-      padding: 4px 0;
-      border-bottom: 1px solid #f1f5f9;
-    }
-    .cat-name { color: #334155; }
-    .cat-amt { font-weight: 700; color: #1e293b; }
-    .cat-pct { color: #94a3b8; font-size: 9px; margin-left: 6px; }
-
-    /* ---- EXPENSE TABLE ---- */
-    table {
+    /* Report Header */
+    .header-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 10px;
-      page-break-inside: auto;
+      border-bottom: 2.5px solid #4f46e5;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
     }
-    thead { display: table-header-group; }
-    tbody { display: table-row-group; }
-    tfoot { display: table-footer-group; }
-    thead tr { background: #6366f1; color: #fff; }
-    thead th {
-      padding: 8px 10px;
-      font-weight: 700;
-      font-size: 9px;
+    .header-table td {
+      vertical-align: bottom;
+      padding: 0 0 8px 0;
+    }
+    .brand-title {
+      font-size: 22px;
+      font-weight: 900;
+      color: #4f46e5;
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+    }
+    .brand-sub {
+      font-size: 9.5px;
+      color: #64748b;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .rep-main-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0f172a;
+      text-align: center;
+    }
+    .rep-sub-title {
+      font-size: 10.5px;
+      color: #4f46e5;
+      font-weight: 600;
+      text-align: center;
+    }
+    .meta-box {
+      font-size: 9.5px;
+      color: #475569;
+      text-align: right;
+      line-height: 1.45;
+    }
+
+    /* Financial Summary Bar */
+    .summary-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 6px 0;
+      margin-bottom: 8px;
+    }
+    .summary-cell {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 6px 10px;
+      text-align: left;
+    }
+    .sum-lbl {
+      font-size: 8.5px;
+      font-weight: 800;
+      color: #64748b;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      text-align: left;
-      border: none;
+      margin-bottom: 2px;
     }
-    thead th.right { text-align: right; }
-    thead th.center { text-align: center; }
-    tbody tr { page-break-inside: avoid; }
-    tbody td {
-      padding: 7px 10px;
-      border-bottom: 1px solid #e2e8f0;
-      vertical-align: top;
-      font-size: 10px;
-    }
-    tfoot td {
-      padding: 8px 10px;
+    .sum-amt {
+      font-size: 15px;
       font-weight: 800;
-      border-top: 2px solid #6366f1;
+      color: #0f172a;
+      line-height: 1.1;
+    }
+    .sum-amt.purple { color: #4f46e5; }
+    .sum-amt.green { color: #16a34a; }
+    .sum-amt.red { color: #dc2626; }
+
+    /* Categories Bar */
+    .cat-bar {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 5px 8px;
+      margin-bottom: 10px;
+      font-size: 9.5px;
+      color: #334155;
+      line-height: 1.5;
+    }
+    .cat-bar-title {
+      font-weight: 800;
+      color: #4338ca;
+      margin-right: 6px;
+    }
+    .cat-pill {
+      display: inline-block;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 1px 6px;
+      margin: 1px 3px;
+      font-size: 9px;
+    }
+    .cat-pill b { color: #0f172a; }
+
+    /* Expense Details Table */
+    .section-heading {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #4338ca;
+      margin-bottom: 5px;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9.5px;
+      page-break-inside: auto;
+      break-inside: auto;
+    }
+    table.data-table thead {
+      display: table-header-group;
+    }
+    table.data-table thead th {
+      background: #4f46e5;
+      color: #ffffff;
+      padding: 6px 6px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border: 1px solid #4338ca;
+      white-space: nowrap;
+    }
+    table.data-table tbody {
+      display: table-row-group;
+    }
+    table.data-table tbody tr {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    table.data-table tbody td {
+      padding: 5.5px 6px;
+      border-bottom: 1px solid #e2e8f0;
+      border-left: 1px solid #f1f5f9;
+      border-right: 1px solid #f1f5f9;
+      vertical-align: middle;
+      color: #1e293b;
+    }
+    table.data-table tfoot {
+      display: table-row-group; /* Prevent footer from duplicating on every printed page */
+    }
+    table.data-table tfoot td {
+      padding: 7px 6px;
+      font-weight: 800;
+      border-top: 2px solid #4f46e5;
+      border-bottom: 2px solid #4f46e5;
       background: #f8fafc;
+      font-size: 10.5px;
     }
 
-    /* ---- DOCUMENT FOOTER ---- */
+    /* Column Widths */
+    .col-num { width: 24px; }
+    .col-date { width: 70px; white-space: nowrap; }
+    .col-item { }
+    .col-cat { width: 95px; white-space: nowrap; }
+    .col-pay { width: 85px; white-space: nowrap; }
+    .col-member { width: 65px; white-space: nowrap; }
+    .col-price { width: 65px; white-space: nowrap; }
+    .col-qty { width: 28px; }
+    .col-total { width: 80px; white-space: nowrap; }
+
+    /* Report Footer */
     .doc-footer {
-      margin-top: 16px;
-      padding-top: 10px;
-      border-top: 1px dashed #e2e8f0;
-      display: flex;
-      justify-content: space-between;
+      margin-top: 14px;
+      padding-top: 8px;
+      border-top: 1px dashed #cbd5e1;
       font-size: 9px;
       color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
     }
 
-    /* ---- PRINT BUTTON (screen only) ---- */
+    /* Print Screen Button */
+    .print-bar {
+      text-align: center;
+      margin-top: 20px;
+    }
     .print-btn {
-      display: block;
-      background: #6366f1;
-      color: #fff;
+      background: #4f46e5;
+      color: #ffffff;
       border: none;
-      padding: 14px 28px;
-      border-radius: 10px;
-      font-size: 15px;
+      padding: 12px 28px;
+      border-radius: 8px;
+      font-size: 14px;
       font-weight: 700;
       cursor: pointer;
-      margin: 20px auto 0;
-      max-width: 400px;
-      width: 100%;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
     }
 
-    @media screen {
-      body { padding: 20px; max-width: 1050px; margin: 0 auto; }
-    }
     @media print {
-      .print-btn { display: none !important; }
-      body { padding: 0; }
-      thead th { position: static !important; }
+      body {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: none !important;
+      }
+      .print-bar { display: none !important; }
+      .header-table, .summary-table, .cat-bar {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      table.data-table thead {
+        display: table-header-group !important;
+      }
+      table.data-table thead th {
+        position: static !important;
+      }
+      table.data-table tbody tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      table.data-table tfoot {
+        display: table-row-group !important;
+      }
     }
   </style>
 </head>
 <body>
 
   <!-- ===== REPORT HEADER ===== -->
-  <div class="report-header">
-    <div>
-      <div class="brand-logo">MONETA</div>
-      <div class="brand-tagline">Family Expense Manager</div>
-    </div>
-    <div class="report-title-block">
-      <div class="report-title">${safeText(title)}</div>
-      <div class="report-subtitle">${safeText(familyName)} &middot; Household Expense Report</div>
-    </div>
-    <div class="report-meta">
-      <strong>Generated:</strong> ${generatedDate}<br>
-      <strong>Time:</strong> ${generatedTime}<br>
-      <strong>Records:</strong> ${sorted.length} expense${sorted.length === 1 ? "" : "s"}
-    </div>
-  </div>
+  <table class="header-table">
+    <tr>
+      <td style="width:30%">
+        <div class="brand-title">MONETA</div>
+        <div class="brand-sub">FAMILY EXPENSE MANAGER</div>
+      </td>
+      <td style="width:40%">
+        <div class="rep-main-title">${safeText(title)}</div>
+        <div class="rep-sub-title">${safeText(familyName)} &bull; Household Report</div>
+      </td>
+      <td style="width:30%" class="meta-box">
+        <div><strong>Date:</strong> ${generatedDate}</div>
+        <div><strong>Time:</strong> ${generatedTime}</div>
+        <div><strong>Total Records:</strong> ${sorted.length} expense${sorted.length === 1 ? "" : "s"}</div>
+      </td>
+    </tr>
+  </table>
 
-  <!-- ===== FINANCIAL SUMMARY ===== -->
-  <div class="section-label">&#x1F4CA; Financial Summary</div>
-  <div class="summary-grid">
-    <div class="summary-card">
-      <span class="label">Total Spent</span>
-      <span class="value">${money(total)}</span>
-    </div>
-    <div class="summary-card">
-      <span class="label">Monthly Budget</span>
-      <span class="value">${budget > 0 ? money(budget) : "Not Set"}</span>
-    </div>
-    <div class="summary-card">
-      <span class="label">Transactions</span>
-      <span class="value">${sorted.length}</span>
-    </div>
-    <div class="summary-card ${budget > 0 ? (remaining < 0 ? "over" : "ok") : ""}">
-      <span class="label">${remaining < 0 ? "Over Budget" : "Remaining"}</span>
-      <span class="value">${budget > 0 ? money(Math.abs(remaining)) : "&mdash;"}</span>
-    </div>
-  </div>
+  <!-- ===== FINANCIAL SUMMARY BAR ===== -->
+  <table class="summary-table">
+    <tr>
+      <td class="summary-cell" style="width:25%">
+        <div class="sum-lbl">Total Spent</div>
+        <div class="sum-amt purple">${money(total)}</div>
+      </td>
+      <td class="summary-cell" style="width:25%">
+        <div class="sum-lbl">Monthly Budget</div>
+        <div class="sum-amt">${budget > 0 ? money(budget) : "Not Set"}</div>
+      </td>
+      <td class="summary-cell" style="width:25%">
+        <div class="sum-lbl">Total Expenses</div>
+        <div class="sum-amt">${sorted.length} items</div>
+      </td>
+      <td class="summary-cell" style="width:25%">
+        <div class="sum-lbl">${budget > 0 ? (remaining < 0 ? "Over Budget" : "Remaining") : "Budget Status"}</div>
+        <div class="sum-amt ${budget > 0 ? (remaining < 0 ? 'red' : 'green') : ''}">
+          ${budget > 0 ? money(Math.abs(remaining)) : "On Track"}
+        </div>
+      </td>
+    </tr>
+  </table>
 
-  <!-- ===== CATEGORY BREAKDOWN ===== -->
-  <div class="section-label">&#x1F3F7;&#xFE0F; Category Breakdown</div>
-  <div class="cat-grid">
-    ${catRowsHtml}
+  <!-- ===== CATEGORY BREAKDOWN BAR ===== -->
+  <div class="cat-bar">
+    <span class="cat-bar-title">&#x1F3F7;&#xFE0F; Top Categories:</span>
+    ${catChipsHtml}
   </div>
 
   <!-- ===== EXPENSE DETAIL TABLE ===== -->
-  <div class="section-label">&#x1F9FE; Expense Details &mdash; ${safeText(title)}</div>
-  <table>
+  <div class="section-heading">&#x1F9FE; Expense Details (${sorted.length} Records)</div>
+  <table class="data-table">
     <thead>
       <tr>
-        <th class="center" style="width:28px">#</th>
-        <th>Date</th>
-        <th>Item / Service</th>
-        <th>Category</th>
-        <th>Payment Method</th>
-        <th>Member</th>
-        <th class="right">Unit Price</th>
-        <th class="center">Qty</th>
-        <th class="right">Total Amount</th>
+        <th class="text-center col-num">#</th>
+        <th class="text-left col-date">Date</th>
+        <th class="text-left col-item">Item / Service</th>
+        <th class="text-left col-cat">Category</th>
+        <th class="text-left col-pay">Payment Method</th>
+        <th class="text-left col-member">Member</th>
+        <th class="text-right col-price">Unit Price</th>
+        <th class="text-center col-qty">Qty</th>
+        <th class="text-right col-total">Total Amount</th>
       </tr>
     </thead>
     <tbody>
@@ -2053,23 +2151,23 @@ function generatePdfReport(title, list) {
     </tbody>
     <tfoot>
       <tr>
-        <td colspan="6" style="text-align:right;font-size:11px;color:#475569;font-weight:600">
-          Grand Total (${sorted.length} item${sorted.length === 1 ? "" : "s"})
-        </td>
+        <td colspan="6" style="text-align:right;color:#475569">Grand Total (${sorted.length} item${sorted.length === 1 ? "" : "s"})</td>
         <td></td>
         <td></td>
-        <td style="text-align:right;color:#6366f1;font-size:13px">${money(total)}</td>
+        <td class="text-right" style="color:#4f46e5;font-size:11px"><strong>${money(total)}</strong></td>
       </tr>
     </tfoot>
   </table>
 
   <!-- ===== DOCUMENT FOOTER ===== -->
   <div class="doc-footer">
-    <span>MONETA Family Expense Manager &middot; Confidential Household Report</span>
-    <span>${safeText(familyName)} &middot; ${generatedDate}</span>
+    <span>MONETA Family Expense Manager &bull; Confidential Household Statement</span>
+    <span>${safeText(familyName)} &bull; ${generatedDate}</span>
   </div>
 
-  <button class="print-btn" onclick="window.print()">&#x1F5A8;&#xFE0F; Print / Save as PDF</button>
+  <div class="print-bar">
+    <button class="print-btn" onclick="window.print()">&#x1F5A8;&#xFE0F; Print / Save as PDF</button>
+  </div>
 
 </body>
 </html>`;
