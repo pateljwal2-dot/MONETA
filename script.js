@@ -138,7 +138,7 @@ function getCategoryCleanName(cat) {
    ========================================================================== */
 
 const PAYMENT_METHODS = [
-  { id: "UPI", label: "UPI", icon: "📱", color: "#6366f1" },
+  { id: "UPI/Online", label: "UPI", icon: "📱", color: "#6366f1" },
   { id: "Cash", label: "Cash", icon: "💵", color: "#10b981" },
   { id: "Credit/Debit Card", label: "Credit/Debit Card", icon: "💳", color: "#f59e0b" },
   { id: "Net Banking", label: "Net Banking", icon: "🏦", color: "#06b6d4" },
@@ -148,7 +148,7 @@ const PAYMENT_METHODS = [
 function getPaymentMethodInfo(method) {
   const norm = String(method || "").trim().toLowerCase();
   if (norm.includes("upi") || norm.includes("online") || norm.includes("gpay") || norm.includes("phonepe") || norm.includes("paytm")) {
-    return { id: "UPI", label: "UPI", icon: "📱", color: "#6366f1" };
+    return { id: "UPI/Online", label: "UPI", icon: "📱", color: "#6366f1" };
   }
   if (norm.includes("cash")) {
     return { id: "Cash", label: "Cash", icon: "💵", color: "#10b981" };
@@ -729,7 +729,7 @@ function openAddExpenseModal() {
   $("quantity").value = "1";
   $("productName").value = "";
   $("expenseNotes").value = "";
-  if ($("paymentMethodSelect")) $("paymentMethodSelect").value = "UPI";
+  if ($("paymentMethodSelect")) $("paymentMethodSelect").value = "UPI/Online";
   updateCalculatedTotal();
   renderCategories();
   renderPaymentMethodChips("modalPaymentChips", "paymentMethodSelect");
@@ -782,7 +782,7 @@ $("expenseForm")?.addEventListener("submit", async event => {
   const button = $("saveExpenseBtn");
   const name = $("productName").value.trim();
   const category = $("categorySelect").value;
-  const paymentMethod = $("paymentMethodSelect")?.value || "UPI";
+  const paymentMethod = $("paymentMethodSelect")?.value || "UPI/Online";
   const date = $("expenseDate").value;
   const price = Number($("price").value);
   const quantity = Number($("quantity").value);
@@ -837,7 +837,7 @@ function openEditExpenseModal(expense) {
   $("editExpenseNotes").value = expense.notes || "";
 
   // Payment Method in Edit Modal
-  const paymentMethod = expense.paymentMethod || "UPI";
+  const paymentMethod = expense.paymentMethod || "UPI/Online";
   if ($("editPaymentMethodSelect")) $("editPaymentMethodSelect").value = paymentMethod;
   renderPaymentMethodChips("editModalPaymentChips", "editPaymentMethodSelect");
 
@@ -874,7 +874,7 @@ $("editExpenseForm")?.addEventListener("submit", async event => {
   const id = $("editExpenseId").value;
   const name = $("editProductName").value.trim();
   const category = $("editCategorySelect").value;
-  const paymentMethod = $("editPaymentMethodSelect")?.value || "UPI";
+  const paymentMethod = $("editPaymentMethodSelect")?.value || "UPI/Online";
   const price = Number($("editPrice").value);
   const quantity = Number($("editQuantity").value);
   const date = $("editExpenseDate").value;
@@ -1777,82 +1777,300 @@ $("shareSummaryBtn")?.addEventListener("click", () => {
 function generatePdfReport(title, list) {
   const total = list.reduce((sum, item) => sum + Number(item.total || 0), 0);
   const budget = Number(currentFamily?.budget || 0);
+  const remaining = budget - total;
+  const familyName = currentFamily?.name || "Family";
+  const generatedDate = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+  const generatedTime = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 
   // Sort by date descending
   const sorted = list.slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
 
-  const rows = sorted.map(item => {
+  // Build category breakdown
+  const catBreakdown = {};
+  sorted.forEach(item => {
+    const c = item.category || "Other";
+    catBreakdown[c] = (catBreakdown[c] || 0) + Number(item.total || 0);
+  });
+
+  const catRowsHtml = Object.entries(catBreakdown)
+    .sort((a, b) => b[1] - a[1])
+    .map(([cat, amt]) => {
+      const pct = total > 0 ? ((amt / total) * 100).toFixed(1) : "0.0";
+      const icon = getCategoryIcon(cat);
+      const cleanName = typeof getCategoryCleanName === "function" ? getCategoryCleanName(cat) : cat;
+      return `<div class="cat-row"><span class="cat-name">${icon} ${safeText(cleanName)}</span><span><span class="cat-amt">${money(amt)}</span><span class="cat-pct">${pct}%</span></span></div>`;
+    }).join("") || `<div style="color:#94a3b8;font-size:10px">No category data</div>`;
+
+  // Build expense rows
+  const rows = sorted.map((item, idx) => {
     const pInfo = getPaymentMethodInfo(item.paymentMethod);
-    return `
-    <tr>
-      <td>${safeText(item.date || "")}</td>
-      <td><strong>${safeText(item.name || "")}</strong></td>
-      <td>${safeText(item.category || "")}</td>
-      <td>${pInfo.icon} ${safeText(pInfo.label)}</td>
-      <td>${safeText(item.createdByName || "")}</td>
-      <td>${money(item.price)}</td>
-      <td>${safeText(item.quantity)}</td>
-      <td style="font-weight:bold;color:#1e293b">${money(item.total)}</td>
-    </tr>
-  `;
+    const icon = getCategoryIcon(item.category);
+    const cleanName = typeof getCategoryCleanName === "function" ? getCategoryCleanName(item.category) : (item.category || "");
+    const bg = idx % 2 === 0 ? "#ffffff" : "#f8fafc";
+    return `<tr style="background:${bg}">
+      <td style="color:#64748b;white-space:nowrap;text-align:center">${String(idx + 1).padStart(2, "0")}</td>
+      <td style="white-space:nowrap">${safeText(item.date || "")}</td>
+      <td><strong>${safeText(item.name || "")}</strong>${item.notes ? `<br><span style="font-size:9px;color:#94a3b8">${safeText(item.notes)}</span>` : ""}</td>
+      <td>${icon} ${safeText(cleanName)}</td>
+      <td style="white-space:nowrap">${pInfo.icon} ${safeText(pInfo.label)}</td>
+      <td style="white-space:nowrap">${safeText(item.createdByName || "")}</td>
+      <td style="text-align:right;white-space:nowrap">${money(item.price)}</td>
+      <td style="text-align:center">${safeText(item.quantity)}</td>
+      <td style="text-align:right;font-weight:700;color:#1e293b;white-space:nowrap">${money(item.total)}</td>
+    </tr>`;
   }).join("");
 
   const htmlContent = `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${safeText(title)} | MONETA</title>
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; color: #1e293b; max-width: 900px; margin: 0 auto; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #6366f1; padding-bottom: 14px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-    .brand { font-size: 24px; font-weight: 900; color: #6366f1; letter-spacing: -1px; }
-    .family { font-size: 14px; color: #64748b; font-weight: 600; margin-top: 2px; }
-    .summary-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
-    .summary-box { background: #f1f5f9; padding: 12px 18px; border-radius: 10px; min-width: 140px; }
-    .summary-box span { font-size: 11px; color: #64748b; display: block; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-    .summary-box strong { font-size: 20px; color: #0f172a; font-weight: 800; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-    th, td { padding: 9px 11px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-    th { background: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; position: sticky; top: 0; }
-    tr:nth-child(even) { background: #f8fafc; }
-    .print-btn { background: #6366f1; color: #fff; border: 0; padding: 12px 28px; border-radius: 10px; font-weight: 700; cursor: pointer; margin-top: 20px; font-size: 15px; display: block; width: 100%; }
-    .print-btn:active { background: #4f46e5; }
-    .footer { margin-top: 20px; font-size: 11px; color: #94a3b8; text-align: center; }
-    @media print { .print-btn { display: none; } body { padding: 10px; } }
+    @page {
+      size: A4 landscape;
+      margin: 15mm 12mm 18mm 12mm;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 11px;
+      color: #1e293b;
+      background: #fff;
+    }
+
+    /* ---- REPORT HEADER ---- */
+    .report-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 3px solid #6366f1;
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+    }
+    .brand-logo { font-size: 22px; font-weight: 900; color: #6366f1; letter-spacing: -1px; }
+    .brand-tagline { font-size: 10px; color: #94a3b8; margin-top: 1px; }
+    .report-title-block { text-align: center; }
+    .report-title { font-size: 16px; font-weight: 800; color: #0f172a; }
+    .report-subtitle { font-size: 11px; color: #6366f1; font-weight: 600; margin-top: 2px; }
+    .report-meta { text-align: right; font-size: 10px; color: #64748b; line-height: 1.6; }
+    .report-meta strong { color: #1e293b; }
+
+    /* ---- SECTION LABELS ---- */
+    .section-label {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #6366f1;
+      margin: 14px 0 6px;
+      padding-bottom: 3px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    /* ---- SUMMARY CARDS ---- */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .summary-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      background: #f8fafc;
+    }
+    .summary-card .label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #64748b;
+      display: block;
+      margin-bottom: 3px;
+    }
+    .summary-card .value { font-size: 18px; font-weight: 800; color: #0f172a; }
+    .summary-card.over .value { color: #ef4444; }
+    .summary-card.ok .value { color: #10b981; }
+
+    /* ---- CATEGORY BREAKDOWN ---- */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 20px;
+      margin-bottom: 14px;
+    }
+    .cat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      padding: 4px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .cat-name { color: #334155; }
+    .cat-amt { font-weight: 700; color: #1e293b; }
+    .cat-pct { color: #94a3b8; font-size: 9px; margin-left: 6px; }
+
+    /* ---- EXPENSE TABLE ---- */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+      page-break-inside: auto;
+    }
+    thead { display: table-header-group; }
+    tbody { display: table-row-group; }
+    tfoot { display: table-footer-group; }
+    thead tr { background: #6366f1; color: #fff; }
+    thead th {
+      padding: 8px 10px;
+      font-weight: 700;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      text-align: left;
+      border: none;
+    }
+    thead th.right { text-align: right; }
+    thead th.center { text-align: center; }
+    tbody tr { page-break-inside: avoid; }
+    tbody td {
+      padding: 7px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+      font-size: 10px;
+    }
+    tfoot td {
+      padding: 8px 10px;
+      font-weight: 800;
+      border-top: 2px solid #6366f1;
+      background: #f8fafc;
+    }
+
+    /* ---- DOCUMENT FOOTER ---- */
+    .doc-footer {
+      margin-top: 16px;
+      padding-top: 10px;
+      border-top: 1px dashed #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      color: #94a3b8;
+    }
+
+    /* ---- PRINT BUTTON (screen only) ---- */
+    .print-btn {
+      display: block;
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin: 20px auto 0;
+      max-width: 400px;
+      width: 100%;
+    }
+
+    @media screen {
+      body { padding: 20px; max-width: 1050px; margin: 0 auto; }
+    }
+    @media print {
+      .print-btn { display: none !important; }
+      body { padding: 0; }
+      thead th { position: static !important; }
+    }
   </style>
 </head>
 <body>
-  <div class="header">
+
+  <!-- ===== REPORT HEADER ===== -->
+  <div class="report-header">
     <div>
-      <div class="brand">MONETA</div>
-      <div class="family">${safeText(currentFamily?.name || "Family")} · ${safeText(title)}</div>
+      <div class="brand-logo">MONETA</div>
+      <div class="brand-tagline">Family Expense Manager</div>
     </div>
-    <div style="font-size:12px;color:#94a3b8;text-align:right">Generated: ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
+    <div class="report-title-block">
+      <div class="report-title">${safeText(title)}</div>
+      <div class="report-subtitle">${safeText(familyName)} &middot; Household Expense Report</div>
+    </div>
+    <div class="report-meta">
+      <strong>Generated:</strong> ${generatedDate}<br>
+      <strong>Time:</strong> ${generatedTime}<br>
+      <strong>Records:</strong> ${sorted.length} expense${sorted.length === 1 ? "" : "s"}
+    </div>
   </div>
 
-  <div class="summary-row">
-    <div class="summary-box"><span>Total Spent</span><strong>${money(total)}</strong></div>
-    <div class="summary-box"><span>Budget</span><strong>${money(budget)}</strong></div>
-    <div class="summary-box"><span>Transactions</span><strong>${sorted.length}</strong></div>
-    ${budget > 0 ? `<div class="summary-box"><span>Remaining</span><strong style="color:${budget - total < 0 ? '#ef4444' : '#22c55e'}">${money(budget - total)}</strong></div>` : ""}
+  <!-- ===== FINANCIAL SUMMARY ===== -->
+  <div class="section-label">&#x1F4CA; Financial Summary</div>
+  <div class="summary-grid">
+    <div class="summary-card">
+      <span class="label">Total Spent</span>
+      <span class="value">${money(total)}</span>
+    </div>
+    <div class="summary-card">
+      <span class="label">Monthly Budget</span>
+      <span class="value">${budget > 0 ? money(budget) : "Not Set"}</span>
+    </div>
+    <div class="summary-card">
+      <span class="label">Transactions</span>
+      <span class="value">${sorted.length}</span>
+    </div>
+    <div class="summary-card ${budget > 0 ? (remaining < 0 ? "over" : "ok") : ""}">
+      <span class="label">${remaining < 0 ? "Over Budget" : "Remaining"}</span>
+      <span class="value">${budget > 0 ? money(Math.abs(remaining)) : "&mdash;"}</span>
+    </div>
   </div>
 
+  <!-- ===== CATEGORY BREAKDOWN ===== -->
+  <div class="section-label">&#x1F3F7;&#xFE0F; Category Breakdown</div>
+  <div class="cat-grid">
+    ${catRowsHtml}
+  </div>
+
+  <!-- ===== EXPENSE DETAIL TABLE ===== -->
+  <div class="section-label">&#x1F9FE; Expense Details &mdash; ${safeText(title)}</div>
   <table>
     <thead>
       <tr>
-        <th>Date</th><th>Item / Service</th><th>Category</th><th>Payment</th>
-        <th>Member</th><th>Price</th><th>Qty</th><th>Total</th>
+        <th class="center" style="width:28px">#</th>
+        <th>Date</th>
+        <th>Item / Service</th>
+        <th>Category</th>
+        <th>Payment Method</th>
+        <th>Member</th>
+        <th class="right">Unit Price</th>
+        <th class="center">Qty</th>
+        <th class="right">Total Amount</th>
       </tr>
     </thead>
     <tbody>
-      ${rows || `<tr><td colspan="8" style="text-align:center;padding:20px;color:#64748b">No expenses found.</td></tr>`}
+      ${rows || `<tr><td colspan="9" style="text-align:center;padding:20px;color:#94a3b8">No expense records found for this period.</td></tr>`}
     </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="6" style="text-align:right;font-size:11px;color:#475569;font-weight:600">
+          Grand Total (${sorted.length} item${sorted.length === 1 ? "" : "s"})
+        </td>
+        <td></td>
+        <td></td>
+        <td style="text-align:right;color:#6366f1;font-size:13px">${money(total)}</td>
+      </tr>
+    </tfoot>
   </table>
 
-  <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
-  <div class="footer">MONETA Family Expense Manager · Report generated automatically</div>
+  <!-- ===== DOCUMENT FOOTER ===== -->
+  <div class="doc-footer">
+    <span>MONETA Family Expense Manager &middot; Confidential Household Report</span>
+    <span>${safeText(familyName)} &middot; ${generatedDate}</span>
+  </div>
+
+  <button class="print-btn" onclick="window.print()">&#x1F5A8;&#xFE0F; Print / Save as PDF</button>
+
 </body>
 </html>`;
 
@@ -1864,7 +2082,6 @@ function generatePdfReport(title, list) {
     a.href = url;
     a.target = "_blank";
     a.rel = "noopener";
-    // On mobile, force download as fallback if new tab is blocked
     a.download = `MONETA_${title.replace(/[^a-z0-9]/gi, "_")}.html`;
     document.body.appendChild(a);
     a.click();
